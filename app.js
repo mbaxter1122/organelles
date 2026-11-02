@@ -58,9 +58,9 @@ const nx=plant?177:246,ny=plant?158:213;s+=group('nucleus',`<ellipse class="body
 const mx=plant?167:406,my=plant?363:291;s+=group('mitochondria',`<g transform="rotate(-15 ${mx} ${my})"><rect class="body" x="${mx-57}" y="${my-26}" width="114" height="52" rx="26" fill="${c('mitochondria')}" stroke="#b94b50" stroke-width="3"/><path d="M${mx-38} ${my}q12-27 20 0t20 0t20 0t18 0" fill="none" stroke="#913b47" stroke-width="4"/></g>`,'Mitochondria',mx,my+47,type);
 const rx=plant?486:408,ry=plant?354:154;s+=group('ribosome',`<rect x="${rx-34}" y="${ry-24}" width="68" height="52" rx="20" fill="transparent"/><g fill="${c('ribosome')}" stroke="#6b4387" stroke-width="2"><circle class="body" cx="${rx-16}" cy="${ry}" r="8"/><circle cx="${rx+8}" cy="${ry-12}" r="8"/><circle cx="${rx+22}" cy="${ry+12}" r="8"/></g>`,'Ribosome',rx,ry-31,type);
 return `<svg viewBox="0 0 600 490" aria-label="${plant?'Plant':'Animal'} cell diagram. Choose a labeled part." xmlns="http://www.w3.org/2000/svg">${s}</svg>`}
-function renderCell(){ $('cellTitle').textContent=cell==='plant'?'Plant cell':'Animal cell';$('animalTab').setAttribute('aria-pressed',cell==='animal');$('plantTab').setAttribute('aria-pressed',cell==='plant');$('cellDiagram').innerHTML=diagram();$('explored').textContent=`${seen[cell].size} of ${lists[cell].length} explored`;$('partButtons').innerHTML=lists[cell].map(id=>`<button data-part="${id}" aria-pressed="${id===selected}">${parts[id].name}${seen[cell].has(id)?' ✓':''}</button>`).join('');document.querySelectorAll('[data-part]').forEach(el=>{el.onclick=()=>selectPart(el.dataset.part);if(el.tagName.toLowerCase()==='g')el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();selectPart(el.dataset.part)}}})}
-function setCell(value){if(!lists[value])throw Error('Unknown cell');cell=value;selectPart(lists[cell].includes(selected)?selected:'nucleus')}
-function selectPart(id,animate=true){if(!lists[cell].includes(id))throw Error('Part is not on this worksheet');selected=id;seen[cell].add(id);if(window.speechSynthesis)speechSynthesis.cancel();renderCell();const p=parts[id];$('partName').textContent=p.name;$('jobText').textContent=p.job;$('partBadge').textContent=`Color: ${p.colorName}`;$('partColor').value=colors[cell][id]||p.color;$('studentJob').value=notes[cell][id]||'';$('writeHint').textContent=`The ${p.name.toLowerCase()}…`;renderQuestion();liftPart(animate);replay()}
+function renderCell(){ if(window.cellModel?.ready){window.cellModel.setCell(cell);window.cellModel.refreshColors()}$('scopeHeading').textContent=cell==='plant'?'Inside the plant cell':'Inside the animal cell'; $('cellTitle').textContent=cell==='plant'?'Plant cell':'Animal cell';$('animalTab').setAttribute('aria-pressed',cell==='animal');$('plantTab').setAttribute('aria-pressed',cell==='plant');$('cellDiagram').innerHTML=diagram();$('explored').textContent=`${seen[cell].size} of ${lists[cell].length} explored`;$('partButtons').innerHTML=lists[cell].map(id=>`<button data-part="${id}" aria-pressed="${id===selected}">${parts[id].name}${seen[cell].has(id)?' ✓':''}</button>`).join('');document.querySelectorAll('[data-part]').forEach(el=>{el.onclick=()=>selectPart(el.dataset.part);if(el.tagName.toLowerCase()==='g')el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();selectPart(el.dataset.part)}}})}
+function setCell(value,record=true){if(!lists[value])throw Error('Unknown cell');cell=value;selectPart(lists[cell].includes(selected)?selected:'nucleus',true,record)}
+function selectPart(id,animate=true,record=true){$('lessonEmpty').hidden=true;$('lessonContent').hidden=false;if(!lists[cell].includes(id))throw Error('Part is not on this worksheet');selected=id;if(record)seen[cell].add(id);if(window.speechSynthesis)speechSynthesis.cancel();renderCell();const p=parts[id];$('partName').textContent=p.name;$('jobText').textContent=p.job;$('partBadge').textContent=`Color: ${p.colorName}`;$('partColor').value=colors[cell][id]||p.color;$('studentJob').value=notes[cell][id]||'';$('structureName').value=structureNames[cell][id]||'';$('writeHint').textContent=`The ${p.name.toLowerCase()}…`;renderQuestion();liftPart(animate);replay()}
 function colorPart(value){colors[cell][selected]=value;renderCell();liftPart(false)}
 function saveNote(value){notes[cell][selected]=value;completed[cell].delete(selected);$('answerFeedback').textContent='';updateWritingProgress()}
 const txt=(x,y,t)=>`<text x="${x}" y="${y}" text-anchor="middle">${t}</text>`;
@@ -81,8 +81,8 @@ function startTimer(){timer=setInterval(()=>{if(step===2){unlockQuestion();step=
 function pauseAnimation(){if(timer){stop();paused=true;freezeGif();$('pauseBtn').textContent='Play';$('jobAnimation').classList.add('paused')}else replay()}
 function nextStep(){stop();paused=true;freezeGif();step=(step+1)%3;animationScene();if(step===2)unlockQuestion();$('pauseBtn').textContent='Play';$('jobAnimation').classList.add('paused')}
 function readJob(){if(!window.speechSynthesis){$('readBtn').textContent='Audio unavailable';return}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(`${parts[selected].name}. ${parts[selected].job}`);u.rate=.85;speechSynthesis.speak(u)}
-window.addEventListener('beforeprint',()=>{$('printPages').innerHTML=['animal','plant'].map(type=>`<div class="print-page"><h1>${type==='plant'?'Plant':'Animal'} Cell Coloring</h1><p>Name: __________________________ Date: ______________</p>${diagram(type)}<p>${lists[type].map(id=>`${parts[id].name}: ${parts[id].colorName}`).join(' · ')}</p><p>My writing: ${completed[type].size} of ${lists[type].length} sections complete</p>${lists[type].map(id=>`<section class="print-response"><h2>${parts[id].name}</h2><p><strong>1. What does this organelle do?</strong></p><div class="print-answer">${esc(notes[type][id]||'')}</div><p><strong>2. ${questions[id].q}</strong></p><div class="print-answer">${esc(answers[type][id]||'')}</div></section>`).join('')}</div>`).join('')});
-if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'explore_cell_part',description:'Select a worksheet cell and organelle and start its job animation.',inputSchema:{type:'object',properties:{cell:{enum:['animal','plant']},part:{type:'string'}},required:['cell','part'],additionalProperties:false},annotations:{readOnlyHint:false},execute(input){if(!lists[input.cell]?.includes(input.part))throw Error('Invalid cell or worksheet part');cell=input.cell;selectPart(input.part);return {cell,part:selected,description:parts[selected].job}}})).catch(()=>{})}catch(e){}}
+window.addEventListener('beforeprint',()=>{$('printPages').innerHTML=['animal','plant'].map(type=>`<div class="print-page"><h1>${type==='plant'?'Plant':'Animal'} Cell Coloring</h1><p>Name: __________________________ Date: ______________</p>${diagram(type)}<p>${lists[type].map(id=>`${parts[id].name}: ${parts[id].colorName}`).join(' · ')}</p><p>My writing: ${completed[type].size} of ${lists[type].length} sections complete</p>${lists[type].map(id=>`<section class="print-response"><h2>${parts[id].name}</h2><p><strong>Structure I identified:</strong> ${esc(structureNames[type][id]||'______________________')}</p><p><strong>1. What does this organelle do?</strong></p><div class="print-answer">${esc(notes[type][id]||'')}</div><p><strong>2. ${questions[id].q}</strong></p><div class="print-answer">${esc(answers[type][id]||'')}</div></section>`).join('')}</div>`).join('')});
+if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'explore_cell_part',description:'Select a worksheet cell and organelle and start its job animation.',inputSchema:{type:'object',properties:{cell:{enum:['animal','plant']},part:{type:'string'}},required:['cell','part'],additionalProperties:false},annotations:{readOnlyHint:false},execute(input){if(!lists[input.cell]?.includes(input.part))throw Error('Invalid cell or worksheet part');$('labHome').hidden=true;$('scopeView').hidden=false;$('labBack').hidden=false;document.body.classList.remove('in-lab');cell=input.cell;selectPart(input.part);window.cellModel?.resize();return {cell,part:selected,description:parts[selected].job}}})).catch(()=>{})}catch(e){}}
 const questions={
  membrane:{q:'Why is it important for the cell membrane to control what enters and leaves?',starter:'This helps the cell because…'},
  nucleus:{q:'Why does the cell need the instructions stored in the nucleus?',starter:'The instructions help the cell…'},
@@ -92,19 +92,21 @@ const questions={
  wall:{q:'How does a cell wall help a plant cell keep its shape?',starter:'The cell wall helps because…'},
  chloroplast:{q:'How would less sunlight affect a chloroplast’s ability to make sugar?',starter:'With less sunlight, the chloroplast…'}
 };
+const structureNames={animal:{},plant:{}};
 const watched={animal:new Set(),plant:new Set()},answers={animal:{},plant:{}},completed={animal:new Set(),plant:new Set()};
 let flyingPart=null,liftAnimation=null;
 function renderQuestion(){
  const q=questions[selected],ready=watched[cell].has(selected);
  $('questionTitle').textContent=q.q;$('questionHint').textContent=ready?'Use the animation and description to explain your thinking.':'Watch the animation first, or use Next step to go through it.';
  $('functionStarter').textContent=q.starter;$('functionAnswer').value=answers[cell][selected]||'';$('functionAnswer').disabled=!ready;
- $('answerFeedback').textContent=completed[cell].has(selected)?'Both responses are filled in. Your teacher can review your explanation.':'';
+ $('answerFeedback').textContent=completed[cell].has(selected)?'Your organelle name and both responses are filled in. Your teacher can review them.':'';
  updateWritingProgress();
 }
 function updateWritingProgress(){$('questionProgress').textContent=`${completed[cell].size} of ${lists[cell].length} writing sections complete`}
 function saveFunctionAnswer(value){answers[cell][selected]=value;completed[cell].delete(selected);$('answerFeedback').textContent='';updateWritingProgress()}
 function completeResponse(){
  if(!watched[cell].has(selected)){$('answerFeedback').textContent='Watch the animation or go through its three steps first.';return}
+ if(!(structureNames[cell][selected]||'').trim()){$('answerFeedback').textContent='First, identify the organelle by writing its name.';$('structureName').focus();return}
  if(!(notes[cell][selected]||'').trim()){$('answerFeedback').textContent='First, write what this organelle does.';$('studentJob').focus();return}
  if(!(answers[cell][selected]||'').trim()){$('answerFeedback').textContent='Now answer the question about its function.';$('functionAnswer').focus();return}
  completed[cell].add(selected);renderQuestion();$('answerFeedback').focus({preventScroll:true});
@@ -112,7 +114,7 @@ function completeResponse(){
 function unlockQuestion(){if(watched[cell].has(selected))return;watched[cell].add(selected);renderQuestion()}
 function showGif(){const img=$('jobGif');img.src=`gifs/${selected}.gif?play=${Date.now()}`;img.alt=`${parts[selected].name}: ${parts[selected].job}`;img.hidden=false;$('jobAnimation').style.display='none'}
 function freezeGif(){$('jobGif').hidden=true;$('jobGif').removeAttribute('src');$('jobAnimation').style.display='block'}
-function liftPart(animate=true){
+function liftPart(animate=true){if(window.cellModel?.ready){window.cellModel.selectPart(selected);return;}
  if(liftAnimation)liftAnimation.cancel();if(flyingPart)flyingPart.remove();
  const source=document.querySelector(`#cellDiagram [data-part="${selected}"]`),stage=$('liftedPart');
  if(!source?.getBBox)return;
@@ -130,4 +132,15 @@ function liftPart(animate=true){
  stage.classList.add('arriving');liftAnimation.onfinish=()=>{ghost.remove();stage.classList.remove('arriving')};liftAnimation.oncancel=()=>{ghost.remove();stage.classList.remove('arriving')};
 }
 
-selectPart('nucleus',false);
+function saveStructureName(value){structureNames[cell][selected]=value;completed[cell].delete(selected);$('answerFeedback').textContent='';updateWritingProgress()}
+let entryTimer=null;
+function enterMicroscope(type){
+ if(!lists[type]||entryTimer)return;
+ const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ $('labStage').style.transformOrigin=type==='plant'?'26% 17%':'74% 17%';
+ if(!reduced){$('labStage').classList.add('zooming');$('eyepieceTransition').classList.add('entering')}
+ entryTimer=setTimeout(()=>{$('labHome').hidden=true;$('scopeView').hidden=false;$('labBack').hidden=false;document.body.classList.remove('in-lab');setCell(type,false);window.cellModel?.resize();window.cellModel?.clearSelection();stop();freezeGif();$('lessonEmpty').hidden=false;$('lessonContent').hidden=true;$('scopeHeading').setAttribute('tabindex','-1');$('scopeHeading').focus({preventScroll:true});window.scrollTo({top:0,behavior:'instant'});$('labStage').classList.remove('zooming');$('eyepieceTransition').classList.remove('entering');entryTimer=null},reduced?0:900);
+}
+function backToLab(){stop();freezeGif();if(window.speechSynthesis)speechSynthesis.cancel();$('scopeView').hidden=true;$('labHome').hidden=false;$('labBack').hidden=true;document.body.classList.add('in-lab');window.scrollTo({top:0,behavior:'instant'});document.querySelector('.microscope-choice')?.focus({preventScroll:true})}
+window.cellExplorer={getCell:()=>cell,getSelected:()=>selected,getName:id=>parts[id].name,getColor:(type,id)=>colors[type][id]||parts[id].color,select:id=>{selectPart(id);if(matchMedia('(max-width: 900px)').matches)document.querySelector('.job-panel').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'})}};
+selectPart('nucleus',false,false);stop();freezeGif();
